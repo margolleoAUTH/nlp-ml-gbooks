@@ -28,29 +28,13 @@ class MyDBHandler:
             result.append(document[item])
         return result
 
-    # Fetch data from all collections
-    def get_all_data(self, prefix, item):
+    def get_all_data(self, preferences, item):
         collections = self.myDB.collection_names()
         result = []
+        resultCategories = []
         for collection in collections:
-            if collection.startswith(prefix):
+            if any(collection in s for s in preferences):
                 result.extend(self.get_data(collection, item))
-        return result
-
-    # Fetch data from collection
-    def get_categories_data(self, collection, item):
-        cursor = self.myDB[collection].find({})
-        result = []
-        for document in cursor:
-            smart_category = collection.split("_")[1]
-            result.append(smart_category)
-        return result
-
-    # Fetch data from all collections
-    def get_all_categories_data(self, prefix, item):
-        collections = self.myDB.collection_names()
-        result = []
-        for collection in collections:
-            if collection.startswith(prefix):
-                result.extend(self.get_categories_data(collection, item))
-        return result
+                smart_category = collection.split("_")[1]
+                resultCategories.extend(self.get_data("categories_" + smart_category, item))
+        return [result, resultCategories]
