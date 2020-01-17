@@ -25,6 +25,8 @@ from sklearn.datasets import make_classification
 import numpy as np
 from sklearn.neural_network import MLPClassifier
 from sklearn import datasets
+from scipy import sparse
+import datetime
 
 # Extra Comments
 #
@@ -47,28 +49,21 @@ def distinct_features_labels(_allX, _allCategories):
     _i = 0
     print("All Feature Indexes::" + str(len(_allX)))
     for _index, _item in enumerate(_allX):
-        # if _item not in _XTemp and _allCategories[_index] != "Medical":
         if _item not in _XTemp:
             _XTemp.append(_item)
             _yTemp.append(_allCategories[_index])
         else:
             _i += 1
     print("Feature Indexes Excluded::" + str(_i))
-    return [_XTemp, _yTemp]
+    return _XTemp, _yTemp
 
 
-def data_manipulation(_list, _joinString, _isExtended):
+def data_manipulation(_list, _joinString):
     _listManipulated = []
-    if _isExtended:
-        for _item in _list:
-            _item = preProcessor.data_pre_processing_nltk_extended(_item)
-            _toSpaceString = _joinString.join(_item)
-            _listManipulated.append(_toSpaceString)
-    else:
-        for _item in _list:
-            _item = preProcessor.data_pre_processing_nltk_extended(_item)
-            _toSpaceString = _joinString.join(_item)
-            _listManipulated.append(_toSpaceString)
+    for _item in _list:
+        _item = preProcessor.data_pre_processing_nltk_extended(_item)
+        _toSpaceString = _joinString.join(_item)
+        _listManipulated.append(_toSpaceString)
     return _listManipulated
 
 
@@ -76,7 +71,6 @@ def data_printer(_list, _listName):
     print("___________________________________________________________________________________________________")
     print(_listName + " - Data printing: ")
     _counter = collections.Counter(_list)
-    # print(_list)
     print(_counter)
 
 
@@ -203,49 +197,20 @@ def le_cosine(_X, _y, _yFactor):
     _XCosine = np.delete(_X.toarray(), _exclude, 0)
     _yCosine = np.delete(_y, _exclude, 0)
     print("Cosine similarity Indexes Excluded::" + str(len(_exclude)))
-    return _XCosine, _yCosine
+    return sparse.csr_matrix(_XCosine), _yCosine
 
 
 if __name__ == "__main__":
 
     try:
+        print(datetime.datetime.now())
         FETCH4STORE = True
         ML = False
         FETCH4STORE = False
         ML = True
-        # --------------------------
-        # QUERY = "bioengineering"
-        # QUERY = "biophysics"
-        # QUERY = "bioeconomics"
-        # QUERY = "biology"
-        # QUERY = "zoology"
-        # QUERY = "microbiology"
-        # QUERY = "immunology"
-        # QUERY = "genetics"
-        # QUERY = "forensic"
-        # QUERY = "ecology"
-        # QUERY = "botany"
-        # QUERY = "bioethics"
-        # QUERY = "biodiversity"
         QUERY = ""
 
         DB = "gbooks"
-        # QUERY = "biochemistry"
-        # QUERY = "bioelectrical"
-        # QUERY = "bioimpedance"
-        # QUERY = "bioinformatics"
-        # QUERY = "biomaterials"
-        # QUERY = "biomedical"
-        # QUERY = "biomedicine"
-        # QUERY = "biostatistics"
-        # QUERY = "biotechnology"
-        # --------------------------
-        # QUERY = "body composition"
-        # QUERY = "lymphedema"
-        # --------------------------
-        # QUERY = "bioresistance"
-        # QUERY = "bioreactance"
-        # --------------------------
         DATA_COL = "data_" + QUERY
         CAT_COL = "categories_" + QUERY
 
@@ -270,8 +235,8 @@ if __name__ == "__main__":
             # PARAMS = {"q": QUERY, "key": "AIzaSyCc-2TofUelwwh5sRNW4Uz-EgWStfM_jqw"}
             # PARAMS = {"q": QUERY, "key": "AIzaSyBT7Y4p9r8PIWqmoP4sJnULGGUJCafUesY"}
             # PARAMS = {"q": QUERY, "key": "AIzaSyD_daqJ7ToX5BIcaLa5EL71PsM8hAqrxr8"}
-            # PARAMS = {"q": QUERY, "key": "AIzaSyDcgDVEHAAETDM4cArfA_QIGfqu4BWPHtg"}
-            PARAMS = {"q": QUERY, "key": "AIzaSyBUTnJnda81h7AJ3pmFUB519RtDigzHulo"}
+            PARAMS = {"q": QUERY, "key": "AIzaSyDcgDVEHAAETDM4cArfA_QIGfqu4BWPHtg"}
+            # PARAMS = {"q": QUERY, "key": "AIzaSyBUTnJnda81h7AJ3pmFUB519RtDigzHulo"}
 
             X = []
             next_page = True
@@ -302,30 +267,30 @@ if __name__ == "__main__":
         if ML:
             print("Machine Learning started ...")
             all = databaseHandler.get_all_data([
-                "data_biochemistry",
-                "data_biodiversity",
-                "data_bioeconomics",
-                "data_bioelectrical",
-                "data_bioengineering",
-                "data_bioethics",
-                "data_bioimpedance",
-                "data_bioinformatics",
-                "data_biology",
-                "data_biomaterials",
-                "data_biomedical",
-                "data_biomedicine",
-                "data_biophysics",
-                "data_biostatistics",
-                "data_biotechnology",
-                "data_body composition",
-                "data_botany",
-                "data_ecology",
-                "data_forensic",
-                "data_genetics",
-                "data_immunology",
-                "data_lymphedema",
-                "data_microbiology",
-                "data_zoology",
+                # "data_biochemistry",
+                # "data_biodiversity",
+                # "data_bioeconomics",
+                # "data_bioelectrical",
+                # "data_bioengineering",
+                # "data_bioethics",
+                # "data_bioimpedance",
+                # "data_bioinformatics",
+                # "data_biology",
+                # "data_biomaterials",
+                # "data_biomedical",
+                # "data_biomedicine",
+                # "data_biophysics",
+                # "data_biostatistics",
+                # "data_biotechnology",
+                # "data_body composition",
+                # "data_botany",
+                # "data_ecology",
+                # "data_forensic",
+                # "data_genetics",
+                # "data_immunology",
+                # "data_lymphedema",
+                # "data_microbiology",
+                # "data_zoology",
                 "data_abnormal",
                 "data_abortion",
                 "data_absorption",
@@ -348,6 +313,24 @@ if __name__ == "__main__":
                 "data_ash",
                 "data_assembler",
                 "data_atom",
+                "data_atropine",
+                "data_autosome",
+                "data_bacillus",
+                "data_bacteria",
+                "data_bark",
+                "data_base",
+                "data_bioavailability",
+                "data_biodiesel",
+                "data_biodiversity",
+                "data_bioenergy",
+                "data_biofuels",
+                "data_biogas",
+                "data_biogeography",
+                "data_bioinformatics",
+                "data_biomarker",
+                "data_biomass",
+                "data_biome",
+                "data_biopharming"
                 "data_biopower",
                 "data_biorefinery",
                 "data_bioregion",
@@ -359,40 +342,39 @@ if __name__ == "__main__":
                 "data_botanical",
                 "data_botulism",
                 "data_brucellosis",
-                "data_buckminsterfullerene"
+                "data_buckminsterfullerene",
+                "data_calorie",
+                "data_carbohydrate",
+                "data_carcinogen",
+                "data_carotenoids",
+                "data_carrier",
+                "data_catalyst",
+                "data_cell",
+                "data_cellulose",
+                "data_chelation",
+                "data_chips",
+                "data_chorion",
+                "data_chromatography",
+                "data_chromosome",
+                "data_class",
+                "data_clone",
+                "data_cloning",
+                "data_clostridium",
+                "data_communicable",
+                "data_community",
+                "data_composites",
+                "data_congenital",
+                "data_consanguinity",
+                "data_contraindication",
+                "data_cytogenetics"
             ], "item")
-            # all = databaseHandler.get_all_data([
-            #     "data_biochemistry",
-            #     "data_biodiversity",
-            #     "data_bioethics",
-            #     "data_biology",
-            #     "data_biomedical",
-            #     "data_biophysics",
-            #     "data_biotechnology",
-            #     "data_botany",
-            #     "data_ecology",
-            #     "data_forensic",
-            #     "data_genetics",
-            #     "data_immunology",
-            #     "data_microbiology",
-            #     "data_zoology"
-            # ], "item")
             allX = all[0]
             allCategories = all[1]
 
-            distinctXyTemp = distinct_features_labels(allX, allCategories)
-            XTemp = distinctXyTemp[0]
-            yTemp = distinctXyTemp[1]
+            XTemp, yTemp = distinct_features_labels(allX, allCategories)
 
-            # # Load text data.
-            # textData = datasets.fetch_20newsgroups(remove=("headers", "footers", "quotes"))
-            #
-            # # Store features and target variable into "X" and "y".
-            # XTemp = textData.data
-            # yTemp = textData.target
-
-            XTempManipulated = data_manipulation(XTemp, " ", True)
-            yTemp = data_manipulation(yTemp, "", False)
+            XTempManipulated = data_manipulation(XTemp, " ")
+            yTemp = data_manipulation(yTemp, "")
 
             data_printer(yTemp, "yTemp")
 
@@ -410,24 +392,19 @@ if __name__ == "__main__":
             for index, item in enumerate(yTempManipulated):
                 yCount = counter[item]
                 yFactor = yCount/len(yTempManipulated)
-                if yFactor > 0.04:
+                if yFactor > 0.05:
                     y.append(yTempManipulated[index])
                     X.append(XTempManipulated[index])
                     i += 1
-                # else:
-                #     y.append(otherLabelEncoded)
-                #     X.append(XTempManipulated[index])
             print("Xy Indexes Included::" + str(i))
 
             vectorizer = TfidfVectorizer()
             X = vectorizer.fit_transform(X)
 
-            # minMaxScaler = QuantileTransformer()
-            # X = minMaxScaler.fit_transform(X)
-
-            X, y = le_cosine(X, y, 4)
-
-            x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+            x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+            # X, y = le_cosine(X, y, 4)
+            #
+            # x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
             # y = np.array(y)
             folds = 1
             # kf = KFold(n_splits=folds)
@@ -449,8 +426,8 @@ if __name__ == "__main__":
             # print("x_train shape::" + str(x_train.shape))
             # data_printer(y_train, "y_train")
 
-            sm = SVMSMOTE()
-            x_train, y_train = sm.fit_resample(x_train, y_train)
+            # sm = SVMSMOTE()
+            # x_train, y_train = sm.fit_resample(x_train, y_train)
 
             # tsvd = TruncatedSVD(n_components=maxSpace - 1)
             # tsvd.fit(X)
@@ -466,7 +443,7 @@ if __name__ == "__main__":
 
             # pipelineMultinomialNB = MultinomialNB(alpha=0.1)
             pipelineLogisticRegression = LogisticRegression(solver="lbfgs", multi_class="multinomial",
-                                                            class_weight="balanced")
+                                                            class_weight="balanced", max_iter=1000)
             pipelineSVC = SVC(C=1, kernel="linear", class_weight="balanced")
 
             # pipeline = make_pipeline(TfidfVectorizer(), MultinomialNB(alpha=0.1))
@@ -487,7 +464,7 @@ if __name__ == "__main__":
             # print("SVC F1: ", round(sumF1SVC/folds, 5))
             # print("LogisticRegression F1: ", round(sumF1LogisticRegression/folds, 5))
 
-        print("Pause")
+        print(datetime.datetime.now())
     except BaseException as error:
         print("===================================================================================================")
         print("Error on_main: %s" % str(error))
