@@ -23,6 +23,12 @@ from matplotlib.backends.backend_pdf import PdfPages
 from sklearn.decomposition import TruncatedSVD
 from imblearn.under_sampling import RandomUnderSampler
 
+# ===================================================================================================
+# IMPORTANT NOTE!!!
+# Unfortunately, our IDE had already installed some libraries before we started the implementation.
+# This was a trap for us and as a result we did not maintain the requirement.txt file.
+# So sorry! requirements.txt is DEPRECATED do not run pip install using this configuration file
+# ===================================================================================================
 
 # Extra Comments
 #
@@ -202,7 +208,6 @@ def le_cosine(_X, _y, _yFactor):
     _counter_able = ""
     _fp = 0
     _pair_index = 0
-    _limit = int(_yFactor/2)
     for _index, _item in enumerate(_json):
         if _index % 2 == 0:
             _pair_index = _index
@@ -210,9 +215,7 @@ def le_cosine(_X, _y, _yFactor):
             _counter_able = _fp[0]
             _fp = len(set(_fp))
         else:
-            _fn = _json[_item].split(",")
-            _counter = collections.Counter(_fn)
-            if _fp > _limit or counter[_counter_able] > _limit:
+            if _fp > _yFactor:
                 _exclude.append(int(_pair_index/2))
 
     _XCosine = np.delete(_X.toarray(), _exclude, 0)
@@ -417,7 +420,7 @@ if __name__ == "__main__":
             # print("TruncatedSVD space:: " + str(_n_components))
             # _truncatedSVD = TruncatedSVD(n_components=_n_components)
 
-            X, y = le_cosine(X, y, 4)
+            X, y = le_cosine(X, y, 2)
 
             accuracyMultinomialNB = 0
             recallMultinomialNB = 0
