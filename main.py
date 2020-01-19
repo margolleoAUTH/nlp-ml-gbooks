@@ -49,14 +49,14 @@ def distinct_features_labels(_allX, _allCategories):
     _XTemp = []
     _yTemp = []
     _i = 0
-    print("Number of Features/Categories - Selected:: " + str(len(_allX)))
+    print("Number of Records/Categories - Selected:: " + str(len(_allX)))
     for _index, _item in enumerate(_allX):
         if _item not in _XTemp:
             _XTemp.append(_item)
             _yTemp.append(_allCategories[_index])
         else:
             _i += 1
-    print("Number of Features/Categories - Duplicated:: " + str(_i))
+    print("Number of Records/Categories - Duplicated:: " + str(_i))
     return _XTemp, _yTemp
 
 
@@ -220,7 +220,7 @@ def le_cosine(_X, _y, _yFactor):
 
     _XCosine = np.delete(_X.toarray(), _exclude, 0)
     _yCosine = np.delete(_y, _exclude, 0)
-    print("Number of Cosine Similarity Features - Excluded:: " + str(len(_exclude)))
+    print("Number of Cosine Similarity Records - Excluded:: " + str(len(_exclude)))
     return sparse.csr_matrix(_XCosine), np.array(_yCosine)
 
 
@@ -391,7 +391,7 @@ if __name__ == "__main__":
             XTempManipulated = data_manipulation(XTemp, " ")
             yTempManipulated = data_manipulation(yTemp, "")
 
-            print("Number of Features - Included:: ", len(XTemp))
+            print("Number of Records - Included:: ", len(XTemp))
             data_printer(yTempManipulated, "yTempManipulated", "Number of Categories - Included:: ")
             counter = collections.Counter(yTempManipulated)
 
@@ -405,7 +405,7 @@ if __name__ == "__main__":
                     y.append(yTempManipulated[index])
                     X.append(XTempManipulated[index])
                     i += 1
-            print("Number of Filtered Features - Included:: " + str(i))
+            print("Number of Filtered Records - Included:: " + str(i))
             data_printer(y, "y", "Number of Filtered Categories - Included:: ")
 
             labelEncoder = LabelEncoder()
