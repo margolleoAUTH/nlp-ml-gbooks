@@ -417,7 +417,7 @@ if __name__ == "__main__":
             # print("TruncatedSVD space:: " + str(_n_components))
             # _truncatedSVD = TruncatedSVD(n_components=_n_components)
 
-            # X, y = le_cosine(X, y, 4)
+            X, y = le_cosine(X, y, 4)
 
             accuracyMultinomialNB = 0
             recallMultinomialNB = 0
