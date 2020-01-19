@@ -3,30 +3,26 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import math
 import collections
+import numpy as np
+import datetime
 from myPreProcessor import MyPreProcessor
 from myDBHandler import MyDBHandler
-from sklearn.preprocessing import LabelEncoder, QuantileTransformer, MinMaxScaler
-from sklearn.model_selection import train_test_split, KFold
+from scipy import sparse
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from imblearn.over_sampling import SVMSMOTE
+from imblearn.metrics import geometric_mean_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import SVC
+from sklearn.ensemble import StackingClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.svm import LinearSVC
-from sklearn.pipeline import make_pipeline
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
-from sklearn.ensemble import AdaBoostClassifier, BaggingClassifier
-from sklearn.ensemble import VotingClassifier
-from sklearn.decomposition import PCA, TruncatedSVD
-from scipy.sparse import csr_matrix
-from imblearn.over_sampling import SVMSMOTE
-from imblearn.under_sampling import NearMiss, RandomUnderSampler
-from sklearn.datasets import make_classification
-import numpy as np
-from sklearn.neural_network import MLPClassifier
-from sklearn import datasets
-from scipy import sparse
-import datetime
+from matplotlib.backends.backend_pdf import PdfPages
+from sklearn.decomposition import TruncatedSVD
+from imblearn.under_sampling import RandomUnderSampler
+
 
 # Extra Comments
 #
@@ -47,14 +43,14 @@ def distinct_features_labels(_allX, _allCategories):
     _XTemp = []
     _yTemp = []
     _i = 0
-    print("All Feature Indexes::" + str(len(_allX)))
+    print("Number of Features/Categories - Selected:: " + str(len(_allX)))
     for _index, _item in enumerate(_allX):
         if _item not in _XTemp:
             _XTemp.append(_item)
             _yTemp.append(_allCategories[_index])
         else:
             _i += 1
-    print("Feature Indexes Excluded::" + str(_i))
+    print("Number of Features/Categories - Duplicated:: " + str(_i))
     return _XTemp, _yTemp
 
 
@@ -67,11 +63,12 @@ def data_manipulation(_list, _joinString):
     return _listManipulated
 
 
-def data_printer(_list, _listName):
+def data_printer(_list, _listName, _message):
     print("___________________________________________________________________________________________________")
     print(_listName + " - Data printing: ")
     _counter = collections.Counter(_list)
     print(_counter)
+    print(_message + str(len(_counter)))
 
 
 def select_n_components(_var_ratio, _goal_var):
@@ -85,14 +82,11 @@ def select_n_components(_var_ratio, _goal_var):
     return _n_components
 
 
-def data_confusion_matrix(_y_test, _y_predicted):
-    print("___________________________________________________________________________________________________")
+def data_confusion_matrix(_modeName, _y_test, _y_predicted):
     _y_test_set = sorted(set(_y_test))
     _y_test_size = len(_y_test_set)
     _y_predicted_set = sorted(set(_y_predicted))
     _y_predicted_size = len(_y_predicted_set)
-    print("Tested Label's size for confusion_matrix: ", _y_test_size)
-    print("Predicted Label's size for confusion_matrix: ", _y_predicted_size)
 
     _CM = confusion_matrix(_y_test, _y_predicted)
 
@@ -109,10 +103,13 @@ def data_confusion_matrix(_y_test, _y_predicted):
     _bottom += 0.5
     _top -= 0.5
     plt.ylim(_bottom, _top)
-    plt.title("Confusion Matrix")
+    plt.title(_modeName + "Confusion Matrix")
     plt.xlabel("Predicted output")
     plt.ylabel("True output")
-    plt.show()
+    # plt.show()
+    with PdfPages(_modeName + "HeatMap.pdf") as export_pdf:
+        export_pdf.savefig()
+    plt.close()
 
     _FP = 0
     _FN = 0
@@ -139,30 +136,54 @@ def data_confusion_matrix(_y_test, _y_predicted):
         else:
             _PRECISION += _tTP / (_tTP + _tFP)
 
-    print("My micro Precision: ", round(_TP * 100 / (_TP + _FP), 5))
-    print("My macro Precision: ", round(_PRECISION * 100 / _cm_length, 5))
+    # print("My micro Precision: ", round(_TP * 100 / (_TP + _FP), 5))
+    # print("My macro Precision: ", round(_PRECISION * 100 / _cm_length, 5))
 
 
-def result_handler(_pipeline, _pipelineName, _x_train, _x_test, _y_train, _y_test):
-    print("___________________________________________________________________________________________________")
-    print(_pipelineName + " - Result printing: ")
-    _pipeline.fit(_x_train, _y_train)
-    _y_predicted = _pipeline.predict(_x_test)
+def sample_handler(_x_train, _y_train):
+    # _nm1 = RandomUnderSampler(replacement=True)
+    # _x_train, _y_train = _nm1.fit_resample(_x_train, _y_train)
 
-    data_printer(_y_predicted, "y_predicted")
-    data_confusion_matrix(_y_test, _y_predicted)
+    _sm = SVMSMOTE()
+    _x_train, _y_train = _sm.fit_resample(_x_train, _y_train)
+
+    return _x_train, _y_train
+
+
+def result_handler(_model, _x_train, _x_test, _y_train, _y_test, _is_grid_search, _modeName=None):
+    _model.fit(_x_train, _y_train)
+    _y_predicted = _model.predict(_x_test)
 
     _accuracy = round(accuracy_score(_y_test, _y_predicted) * 100, 5)
     _recall = round(recall_score(_y_test, _y_predicted, average="macro") * 100, 5)
     _precision_macro = round(precision_score(_y_test, _y_predicted, average="macro") * 100, 5)
-    _precision_micro = round(precision_score(_y_test, _y_predicted, average="micro") * 100, 5)
     _f1 = round(f1_score(_y_test, _y_predicted, average="macro") * 100, 5)
-    print("Accuracy: ", _accuracy)
-    print("Recall: ", _recall)
-    print("Precision micro: ", _precision_micro)
-    print("Precision macro: ", _precision_macro)
-    print("F1: ", _f1)
-    return _f1
+    _gMean = round(geometric_mean_score(_y_test, _y_predicted, average="macro")* 100, 5)
+    if _is_grid_search:
+        data_confusion_matrix(_modeName, _y_test, _y_predicted)
+        return _accuracy, _recall, _precision_macro, _f1, _gMean, _model.best_estimator_
+    else:
+        return _accuracy, _recall, _precision_macro, _f1, _gMean
+
+
+def result_printer(_accuracy, _recall, _precision, _f1, _gMean, _modelName, _modelFirst, _modelSecond, _folds):
+    print("___________________________________________________________________________________________________")
+    if _modelSecond is None:
+        if "MultinomialNB " == _modelName:
+            print(_modelFirst)
+        else:
+            print(_modelFirst.get_params())
+    else:
+        print(_modelFirst.get_params())
+        print(_modelSecond.get_params())
+
+    print(_modelName + "Result printing: ")
+    print("_______________________________")
+    print(_modelName + "Accuracy: ", round(_accuracy/_folds, 5))
+    print(_modelName + "Recall: ", round(_recall/_folds, 5))
+    print(_modelName + "Precision: ", round(_precision/_folds, 5))
+    print(_modelName + "F1: ", round(_f1/_folds, 5))
+    print(_modelName + "G-Mean: ", round(_gMean/_folds, 5))
 
 
 def le_cosine(_X, _y, _yFactor):
@@ -181,7 +202,7 @@ def le_cosine(_X, _y, _yFactor):
     _counter_able = ""
     _fp = 0
     _pair_index = 0
-    limit = int(_yFactor/2)
+    _limit = int(_yFactor/2)
     for _index, _item in enumerate(_json):
         if _index % 2 == 0:
             _pair_index = _index
@@ -191,21 +212,22 @@ def le_cosine(_X, _y, _yFactor):
         else:
             _fn = _json[_item].split(",")
             _counter = collections.Counter(_fn)
-            if _fp > limit or counter[_counter_able] > limit:
+            if _fp > _limit or counter[_counter_able] > _limit:
                 _exclude.append(int(_pair_index/2))
 
     _XCosine = np.delete(_X.toarray(), _exclude, 0)
     _yCosine = np.delete(_y, _exclude, 0)
-    print("Cosine similarity Indexes Excluded::" + str(len(_exclude)))
-    return sparse.csr_matrix(_XCosine), _yCosine
+    print("Number of Cosine Similarity Features - Excluded:: " + str(len(_exclude)))
+    return sparse.csr_matrix(_XCosine), np.array(_yCosine)
 
 
 if __name__ == "__main__":
 
     try:
-        print(datetime.datetime.now())
-        FETCH4STORE = True
-        ML = False
+        print("_______________________________")
+        print(datetime.datetime.now().strftime("%D %H:%M:%S"))
+        # FETCH4STORE = True
+        # ML = False
         FETCH4STORE = False
         ML = True
         QUERY = ""
@@ -235,8 +257,8 @@ if __name__ == "__main__":
             # PARAMS = {"q": QUERY, "key": "AIzaSyCc-2TofUelwwh5sRNW4Uz-EgWStfM_jqw"}
             # PARAMS = {"q": QUERY, "key": "AIzaSyBT7Y4p9r8PIWqmoP4sJnULGGUJCafUesY"}
             # PARAMS = {"q": QUERY, "key": "AIzaSyD_daqJ7ToX5BIcaLa5EL71PsM8hAqrxr8"}
-            PARAMS = {"q": QUERY, "key": "AIzaSyDcgDVEHAAETDM4cArfA_QIGfqu4BWPHtg"}
-            # PARAMS = {"q": QUERY, "key": "AIzaSyBUTnJnda81h7AJ3pmFUB519RtDigzHulo"}
+            # PARAMS = {"q": QUERY, "key": "AIzaSyDcgDVEHAAETDM4cArfA_QIGfqu4BWPHtg"}
+            PARAMS = {"q": QUERY, "key": "AIzaSyBUTnJnda81h7AJ3pmFUB519RtDigzHulo"}
 
             X = []
             next_page = True
@@ -267,30 +289,6 @@ if __name__ == "__main__":
         if ML:
             print("Machine Learning started ...")
             all = databaseHandler.get_all_data([
-                # "data_biochemistry",
-                # "data_biodiversity",
-                # "data_bioeconomics",
-                # "data_bioelectrical",
-                # "data_bioengineering",
-                # "data_bioethics",
-                # "data_bioimpedance",
-                # "data_bioinformatics",
-                # "data_biology",
-                # "data_biomaterials",
-                # "data_biomedical",
-                # "data_biomedicine",
-                # "data_biophysics",
-                # "data_biostatistics",
-                # "data_biotechnology",
-                # "data_body composition",
-                # "data_botany",
-                # "data_ecology",
-                # "data_forensic",
-                # "data_genetics",
-                # "data_immunology",
-                # "data_lymphedema",
-                # "data_microbiology",
-                # "data_zoology",
                 "data_abnormal",
                 "data_abortion",
                 "data_absorption",
@@ -320,26 +318,40 @@ if __name__ == "__main__":
                 "data_bark",
                 "data_base",
                 "data_bioavailability",
+                "data_biochemistry",
                 "data_biodiesel",
                 "data_biodiversity",
+                "data_bioeconomics",
+                "data_bioelectrical",
                 "data_bioenergy",
+                "data_bioengineering",
+                "data_bioethics",
                 "data_biofuels",
                 "data_biogas",
                 "data_biogeography",
+                "data_bioimpedance",
                 "data_bioinformatics",
+                "data_biology",
                 "data_biomarker",
                 "data_biomass",
+                "data_biomaterials",
                 "data_biome",
-                "data_biopharming"
+                "data_biomedical",
+                "data_biomedicine",
+                "data_biopharming",
+                "data_biophysics",
                 "data_biopower",
                 "data_biorefinery",
                 "data_bioregion",
                 "data_bioremediation",
+                "data_biostatistics",
                 "data_biota",
                 "data_biotechnology",
                 "data_bioterrorism",
                 "data_blastocyst",
+                "data_body",
                 "data_botanical",
+                "data_botany",
                 "data_botulism",
                 "data_brucellosis",
                 "data_buckminsterfullerene",
@@ -366,7 +378,7 @@ if __name__ == "__main__":
                 "data_congenital",
                 "data_consanguinity",
                 "data_contraindication",
-                "data_cytogenetics"
+                "data_cytogenetic"
             ], "item")
             allX = all[0]
             allCategories = all[1]
@@ -374,17 +386,11 @@ if __name__ == "__main__":
             XTemp, yTemp = distinct_features_labels(allX, allCategories)
 
             XTempManipulated = data_manipulation(XTemp, " ")
-            yTemp = data_manipulation(yTemp, "")
+            yTempManipulated = data_manipulation(yTemp, "")
 
-            data_printer(yTemp, "yTemp")
-
-            labelEncoder = LabelEncoder()
-            yTempManipulated = labelEncoder.fit_transform(yTemp)
-
-            data_printer(yTempManipulated, "yTempManipulated")
+            print("Number of Features - Included:: ", len(XTemp))
+            data_printer(yTempManipulated, "yTempManipulated", "Number of Categories - Included:: ")
             counter = collections.Counter(yTempManipulated)
-            otherLabelEncoded = max(yTempManipulated) + 1
-            print("Other category label::", otherLabelEncoded)
 
             X = []
             y = []
@@ -392,79 +398,151 @@ if __name__ == "__main__":
             for index, item in enumerate(yTempManipulated):
                 yCount = counter[item]
                 yFactor = yCount/len(yTempManipulated)
-                if yFactor > 0.05:
+                if yFactor > 0.03:
                     y.append(yTempManipulated[index])
                     X.append(XTempManipulated[index])
                     i += 1
-            print("Xy Indexes Included::" + str(i))
+            print("Number of Filtered Features - Included:: " + str(i))
+            data_printer(y, "y", "Number of Filtered Categories - Included:: ")
+
+            labelEncoder = LabelEncoder()
+            y = labelEncoder.fit_transform(y)
 
             vectorizer = TfidfVectorizer()
             X = vectorizer.fit_transform(X)
 
-            x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+            # _tsvd = _TruncatedSVD()
+            # _tsvd.fit(X)
+            # _n_components = select_n_components(_tsvd.explained_variance_ratio_, 0.95)
+            # print("TruncatedSVD space:: " + str(_n_components))
+            # _truncatedSVD = TruncatedSVD(n_components=_n_components)
+
             # X, y = le_cosine(X, y, 4)
-            #
-            # x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
-            # y = np.array(y)
-            folds = 1
-            # kf = KFold(n_splits=folds)
-            sumF1MultinomialNB = 0
-            sumF1LogisticRegression = 0
-            sumF1SVC = 0
-            # for fold, (train_index, test_index) in enumerate(kf.split(X), 1):
-            #     x_train = X[train_index]
-            #     y_train = y[train_index]
-            #     x_test = X[test_index]
-            #     y_test = y[test_index]
 
-            # print("x_train shape::" + str(x_train.shape))
-            # data_printer(y_train, "y_train")
-            #
-            # nm1 = RandomUnderSampler(replacement=True)
-            # x_train, y_train = nm1.fit_resample(x_train, y_train)
-            #
-            # print("x_train shape::" + str(x_train.shape))
-            # data_printer(y_train, "y_train")
+            accuracyMultinomialNB = 0
+            recallMultinomialNB = 0
+            precisionMacroMultinomialNB = 0
+            f1MultinomialNB = 0
+            gMeanMultinomialNB = 0
+            alpha = 0.1
+            folds = 5
 
-            # sm = SVMSMOTE()
-            # x_train, y_train = sm.fit_resample(x_train, y_train)
+            kf = StratifiedKFold(n_splits=folds)
+            for train_index, test_index in kf.split(X, y):
+                x_train = X[train_index]
+                y_train = y[train_index]
+                x_test = X[test_index]
+                y_test = y[test_index]
 
-            # tsvd = TruncatedSVD(n_components=maxSpace - 1)
-            # tsvd.fit(X)
-            # n_components = select_n_components(tsvd.explained_variance_ratio_, 0.95)
-            #
-            # print("truncatedSVD space::" + str(n_components))
-            # truncatedSVD = TruncatedSVD(n_components=n_components)
-            # # truncatedSVD = PCA(n_components=minSpace)
-            # X = truncatedSVD.fit_transform(X)
+                x_train, y_train = sample_handler(x_train, y_train)
+                minMaxScaler = MinMaxScaler()
+                x_train_trans = minMaxScaler.fit_transform(x_train.todense())
+                x_test_trans = minMaxScaler.transform(x_test.todense())
+                x_train = sparse.csr_matrix(x_train_trans)
+                x_test = sparse.csr_matrix(x_test_trans)
 
-            data_printer(y_train, "y_train")
-            data_printer(y_test, "y_test")
+                multinomialNB = MultinomialNB(alpha=alpha)
+                resultsMultinomialNB = result_handler(multinomialNB, x_train, x_test, y_train, y_test, False)
 
-            # pipelineMultinomialNB = MultinomialNB(alpha=0.1)
-            pipelineLogisticRegression = LogisticRegression(solver="lbfgs", multi_class="multinomial",
-                                                            class_weight="balanced", max_iter=1000)
-            pipelineSVC = SVC(C=1, kernel="linear", class_weight="balanced")
+                accuracyMultinomialNB += resultsMultinomialNB[0]
+                recallMultinomialNB += resultsMultinomialNB[1]
+                precisionMacroMultinomialNB += resultsMultinomialNB[2]
+                f1MultinomialNB += resultsMultinomialNB[3]
+                gMeanMultinomialNB += resultsMultinomialNB[4]
 
-            # pipeline = make_pipeline(TfidfVectorizer(), MultinomialNB(alpha=0.1))
-            # pipeline = make_pipeline(TfidfVectorizer(), SVC(C=5, kernel="linear", class_weight="balanced"))
-            # pipeline = make_pipeline(TfidfVectorizer(), AdaBoostClassifier(LinearSVC(), n_estimators=1000, learning_rate=1.0, algorithm="SAMME"))
-            # pipeline = AdaBoostClassifier(n_estimators=100, base_estimator=pipeline, learning_rate=1)
-            # pipeline = BaggingClassifier(base_estimator=pipeline)
-            # estimators = [
-            #     ("ml", BaggingClassifier(base_estimator=MultinomialNB(alpha=0.1))),
-            #     ("bsvm", BaggingClassifier(base_estimator=SVC(C=1, kernel="linear", class_weight="balanced")))
-            # ]
-            # pipeline = VotingClassifier(estimators)
+            x_train, x_test, y_train, y_test = train_test_split(X, y)
+            x_train, y_train = sample_handler(x_train, y_train)
 
-            # sumF1MultinomialNB += result_handler(pipelineMultinomialNB, "MultinomialNB", x_train, x_test, y_train, y_test)
-            sumF1LogisticRegression += result_handler(pipelineLogisticRegression, "LogisticRegression", x_train, x_test, y_train, y_test)
-            sumF1SVC += result_handler(pipelineSVC, "SVC", x_train, x_test, y_train, y_test)
+            paramsLogisticRegression = {"solver": ("sag", "lbfgs")}
+            paramsSVC = {"kernel": ("linear", "rbf"), "C": [0.1, 1, 10]}
+            logisticRegression = LogisticRegression(multi_class="multinomial", class_weight="balanced", max_iter=100)
+            SVC = SVC(gamma="auto", class_weight="balanced")
+            gridLogisticRegression = GridSearchCV(logisticRegression, paramsLogisticRegression, cv=folds)
+            gridSVC = GridSearchCV(SVC, paramsSVC, cv=folds)
 
-            # print("SVC F1: ", round(sumF1SVC/folds, 5))
-            # print("LogisticRegression F1: ", round(sumF1LogisticRegression/folds, 5))
+            resultsLogisticRegression = result_handler(gridLogisticRegression, x_train, x_test, y_train, y_test, True, "LogisticRegression ")
+            resultsSVC = result_handler(gridSVC, x_train, x_test, y_train, y_test, True, "SVC ")
 
-        print(datetime.datetime.now())
+            estimators = [
+                ("logisticRegression", gridLogisticRegression),
+                ("svm", resultsSVC[5])
+            ]
+            stackingLogisticRegression = StackingClassifier(estimators=estimators, final_estimator=gridLogisticRegression)
+            stackingSVC = StackingClassifier(estimators=estimators, final_estimator=resultsSVC[5])
+
+            resultsStackingLogisticRegression = result_handler(stackingLogisticRegression, x_train, x_test, y_train, y_test, False)
+            resultsStackingSVC = result_handler(stackingSVC, x_train, x_test, y_train, y_test, False)
+
+            accuracyLogisticRegression = resultsLogisticRegression[0]
+            recallLogisticRegression = resultsLogisticRegression[1]
+            precisionMacroLogisticRegression = resultsLogisticRegression[2]
+            f1LogisticRegression = resultsLogisticRegression[3]
+            gMeanLogisticRegression = resultsLogisticRegression[4]
+            accuracySVC = resultsSVC[0]
+            recallSVC = resultsSVC[1]
+            precisionMacroSVC = resultsSVC[2]
+            f1SVC = resultsSVC[3]
+            gMeanSVC = resultsSVC[4]
+            accuracyStackingLogisticRegression = resultsStackingLogisticRegression[0]
+            recallStackingLogisticRegression = resultsStackingLogisticRegression[1]
+            precisionMacroStackingLogisticRegression = resultsStackingLogisticRegression[2]
+            f1StackingLogisticRegression = resultsStackingLogisticRegression[3]
+            gMeanStackingLogisticRegression = resultsStackingLogisticRegression[4]
+            accuracyStackingSVC = resultsStackingSVC[0]
+            recallStackingSVC = resultsStackingSVC[1]
+            precisionMacroStackingSVC = resultsStackingSVC[2]
+            f1StackingSVC = resultsStackingSVC[3]
+            gMeanStackingSVC = resultsStackingSVC[4]
+
+            result_printer(accuracyMultinomialNB,
+                           recallMultinomialNB,
+                           precisionMacroMultinomialNB,
+                           f1MultinomialNB,
+                           gMeanMultinomialNB,
+                           "MultinomialNB ",
+                           alpha,
+                           None,
+                           folds)
+            result_printer(accuracyLogisticRegression,
+                           recallLogisticRegression,
+                           precisionMacroLogisticRegression,
+                           f1LogisticRegression,
+                           gMeanLogisticRegression,
+                           "LogisticRegression ",
+                           resultsLogisticRegression[5],
+                           None,
+                           1)
+            result_printer(accuracySVC,
+                           recallSVC,
+                           precisionMacroSVC,
+                           f1SVC,
+                           gMeanSVC,
+                           "SVC ",
+                           resultsSVC[5],
+                           None,
+                           1)
+            result_printer(accuracyStackingLogisticRegression,
+                           recallStackingLogisticRegression,
+                           precisionMacroStackingLogisticRegression,
+                           f1StackingLogisticRegression,
+                           gMeanStackingLogisticRegression,
+                           "StackingLogisticRegression ",
+                           resultsLogisticRegression[5],
+                           resultsSVC[5],
+                           1)
+            result_printer(accuracyStackingSVC,
+                           recallStackingSVC,
+                           precisionMacroStackingSVC,
+                           f1StackingSVC,
+                           gMeanStackingSVC,
+                           "StackingSVC ",
+                           resultsSVC[5],
+                           resultsLogisticRegression[5],
+                           1)
+
+            print("_______________________________")
+            print(datetime.datetime.now().strftime("%D %H:%M:%S"))
+
     except BaseException as error:
         print("===================================================================================================")
         print("Error on_main: %s" % str(error))
